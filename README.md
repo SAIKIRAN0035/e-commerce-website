@@ -9,6 +9,10 @@ Homemade Andhra **pickles, podis & karams** — full customer e-commerce website
 
 **Live demo:** https://vaha-ruchulu.vercel.app
 
+**Documentation:**
+- [Website build case study](https://github.com/SAIKIRAN0035/ecommerce-website-build) — scratch to production
+- [DevOps pipeline](https://github.com/SAIKIRAN0035/ecommerce-devops-pipeline) — CI/CD, deploy, monitoring
+
 ---
 
 ## Features
