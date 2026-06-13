@@ -1,0 +1,26 @@
+[
+  {
+    "id": "default-1",
+    "name": "Priya Sharma",
+    "location": "Hyderabad",
+    "text": "The mango pickle tastes exactly like my grandmother used to make. Authentic, spicy, and absolutely delicious!",
+    "rating": 5,
+    "date": "Jan 2026"
+  },
+  {
+    "id": "default-2",
+    "name": "Rajesh Kumar",
+    "location": "Bangalore",
+    "text": "Ordered chicken pickle for the first time — rich flavour, perfect texture. Will definitely order again.",
+    "rating": 5,
+    "date": "Feb 2026"
+  },
+  {
+    "id": "default-3",
+    "name": "Anitha Reddy",
+    "location": "USA",
+    "text": "International delivery was smooth. The podis arrived fresh and packed beautifully. Highly recommend Vaha Ruchulu!",
+    "rating": 5,
+    "date": "Mar 2026"
+  }
+]
