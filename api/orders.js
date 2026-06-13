@@ -15,18 +15,28 @@ async function trySendNewOrderEmails(order) {
   }
 }
 
-async function trySendPaymentConfirmedEmail(order) {
+const CUSTOMER_STATUS_EMAILS = new Set([
+  "payment_confirmed",
+  "preparing",
+  "shipped",
+  "delivered",
+  "cancelled",
+]);
+
+async function trySendOrderStatusEmail(order, status) {
+  if (!CUSTOMER_STATUS_EMAILS.has(status)) return { sent: false };
+
   try {
-    const { isEmailConfigured, sendPaymentConfirmedEmail } = await import("../server/lib/email.js");
-    if (!isEmailConfigured()) return { sent: false };
+    const { isEmailConfigured, sendOrderStatusEmail } = await import("../server/lib/email.js");
+    if (!isEmailConfigured()) return { sent: false, reason: "email_not_configured" };
 
     await Promise.race([
-      sendPaymentConfirmedEmail(order),
+      sendOrderStatusEmail(order, status),
       new Promise((_, reject) => setTimeout(() => reject(new Error("email_timeout")), 4000)),
     ]);
     return { sent: true };
   } catch {
-    return { sent: false };
+    return { sent: false, reason: "email_failed" };
   }
 }
 
@@ -210,8 +220,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Could not save order status. Please try again." });
     }
 
-    if (status === "payment_confirmed" && existing.status !== "payment_confirmed") {
-      trySendPaymentConfirmedEmail(updated);
+    if (status !== existing.status) {
+      trySendOrderStatusEmail(updated, status);
     }
 
     return res.status(200).json(updated);

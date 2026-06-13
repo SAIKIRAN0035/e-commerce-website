@@ -10,6 +10,15 @@ export const ORDER_STATUS_LABELS = {
   cancelled: "Cancelled",
 };
 
+export const ORDER_STATUS_CUSTOMER_HINTS = {
+  pending_payment: "Complete payment as shared on WhatsApp. We'll email you when payment is confirmed.",
+  payment_confirmed: "Payment received. We're getting your order ready.",
+  preparing: "Your order is being prepared fresh.",
+  shipped: "Your package is on the way.",
+  delivered: "Your order has been delivered. Enjoy!",
+  cancelled: "This order was cancelled. Contact us on WhatsApp if you have questions.",
+};
+
 function adminHeaders() {
   const token = getAdminToken();
   return {

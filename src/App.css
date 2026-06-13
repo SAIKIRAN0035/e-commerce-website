@@ -1851,12 +1851,19 @@
 
 .track-status {
   display: inline-block;
-  margin: 0 0 16px;
+  margin: 0 0 8px;
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.track-status-hint {
+  margin: 0 0 16px;
+  color: var(--text-muted, #5a5a5a);
+  line-height: 1.5;
+  font-size: 0.95rem;
 }
 
 .cart-spice-label {

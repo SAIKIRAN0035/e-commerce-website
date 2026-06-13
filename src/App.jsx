@@ -14,7 +14,11 @@ import OwnerAdmin from "./components/OwnerAdmin";
 import { buildWhatsAppOrderMessage, formatOrderDate, createLocalOrderId, buildOrderFromPayload } from "./lib/orderMessage";
 import { openWhatsAppChat, isMobileDevice } from "./lib/whatsapp";
 import { trackOrder } from "./lib/orderTrack";
-import { ORDER_STATUS_LABELS, createOrder } from "./lib/orders";
+import {
+  ORDER_STATUS_CUSTOMER_HINTS,
+  ORDER_STATUS_LABELS,
+  createOrder,
+} from "./lib/orders";
 import { fetchAllReviews, postReview } from "./lib/reviews";
 import { fetchProducts } from "./lib/productsApi";
 import { validateCustomer, isValidPhone } from "../shared/customerValidation";
@@ -526,7 +530,10 @@ export default function App() {
         <div className="section-head reveal">
           <p className="eyebrow">Order Status</p>
           <h2>Track Your Order</h2>
-          <p>Enter your Order ID and phone number from your confirmation.</p>
+          <p>
+            Save your Order ID after checkout. We email you at each step (payment confirmed,
+            preparing, shipped, delivered). You can also check status here anytime.
+          </p>
         </div>
         <form className="track-form reveal" onSubmit={handleTrackOrder}>
           <input
@@ -552,6 +559,9 @@ export default function App() {
             <p className={`track-status order-status-${trackResult.status}`}>
               {trackResult.statusLabel}
             </p>
+            {ORDER_STATUS_CUSTOMER_HINTS[trackResult.status] && (
+              <p className="track-status-hint">{ORDER_STATUS_CUSTOMER_HINTS[trackResult.status]}</p>
+            )}
             <ul className="order-summary-list">
               {trackResult.items.map((item, i) => (
                 <li key={i}>
@@ -849,7 +859,10 @@ export default function App() {
                 <option value="Extra Hot">Extra Hot</option>
               </select>
             </label>
-            <p className="cart-note">Order confirmation is sent on WhatsApp and to your email. Use your real phone (with +91) and email.</p>
+            <p className="cart-note">
+              You'll get WhatsApp for payment details and email updates when we confirm payment,
+              prepare, ship, and deliver. Use your real phone (with +91) and email.
+            </p>
             {orderError && <p className="order-error">{orderError}</p>}
             <button type="button" className="btn btn-primary btn-full" onClick={placeOrder} disabled={orderPlacing}>
               {orderPlacing ? "Placing order..." : "Place Order"}
@@ -888,10 +901,10 @@ export default function App() {
             <p>WhatsApp has opened with your order details. Please tap <strong>Send</strong> to notify Vaha Ruchulu.</p>
             <p className="modal-note">
               {confirmedOrder.notifications?.email?.sent && confirmedOrder.customer.email
-                ? "Confirmation emails have been sent to you and the owner. Payment details will also be shared on WhatsApp."
+                ? "Save your Order ID above. We'll email you when payment is confirmed, preparing, shipped, and delivered. You can also use Track Order on the homepage."
                 : confirmedOrder.customer.email
-                  ? "Your order is saved. Payment details (UPI/GPay/PhonePe) will be shared on WhatsApp."
-                  : "Payment details (UPI/GPay/PhonePe) will be shared on WhatsApp. Add your email next time for email confirmation."}
+                  ? "Save your Order ID. Payment details on WhatsApp; status updates will be emailed to you after we confirm payment."
+                  : "Payment details (UPI/GPay/PhonePe) on WhatsApp. Add your email next time for automatic status updates."}
             </p>
             <p className="order-date-note">Placed on {formatOrderDate(confirmedOrder.createdAt)}</p>
             <button

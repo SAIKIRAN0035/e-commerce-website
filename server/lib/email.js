@@ -98,7 +98,9 @@ export async function sendNewOrderEmails(order) {
       order,
       extraHtml: `<p style="margin-top:16px;"><strong>Payment status:</strong> Pending</p>
         <p>We will share UPI / GPay / PhonePe or bank details on WhatsApp shortly. Please complete payment to confirm your order.</p>
-        <p>You can also message us on WhatsApp at +91 8501831638 with your order ID.</p>`,
+        <p>After payment is confirmed, we will email you at each step: preparing, shipped, and delivered.</p>
+        <p>You can also message us on WhatsApp at +91 8501831638 with your order ID.</p>
+        ${trackOrderFooter()}`,
     });
 
     await transporter.sendMail({
@@ -112,26 +114,81 @@ export async function sendNewOrderEmails(order) {
   return { sent: true };
 }
 
-export async function sendPaymentConfirmedEmail(order) {
+const SITE_URL =
+  process.env.VITE_SITE_URL || process.env.SITE_URL || "https://vaha-ruchulu.vercel.app";
+
+const STATUS_EMAIL = {
+  payment_confirmed: {
+    title: "Payment confirmed",
+    subject: (id) => `Payment Confirmed — Order ${id}`,
+    intro: (order) =>
+      `Hi ${order.customer.name}, your payment for order ${order.id} has been confirmed. Thank you!`,
+    extraHtml: `<p style="margin-top:16px;"><strong>Status:</strong> Payment confirmed ✓</p>
+      <p>We are preparing your order fresh. You will get an email when it ships and when it is delivered.</p>`,
+    notifyOwner: true,
+  },
+  preparing: {
+    title: "We're preparing your order",
+    subject: (id) => `Preparing your order ${id}`,
+    intro: (order) =>
+      `Hi ${order.customer.name}, your order ${order.id} is now being prepared in our kitchen.`,
+    extraHtml: `<p style="margin-top:16px;"><strong>Status:</strong> Preparing</p>
+      <p>Your pickles and podis are being made fresh. We'll email you again when your order ships.</p>`,
+  },
+  shipped: {
+    title: "Your order has shipped",
+    subject: (id) => `Shipped — Order ${id}`,
+    intro: (order) =>
+      `Hi ${order.customer.name}, your order ${order.id} is on its way!`,
+    extraHtml: `<p style="margin-top:16px;"><strong>Status:</strong> Shipped</p>
+      <p>Your package has been dispatched. Delivery time depends on your location.</p>`,
+  },
+  delivered: {
+    title: "Order delivered",
+    subject: (id) => `Delivered — Order ${id}`,
+    intro: (order) =>
+      `Hi ${order.customer.name}, your order ${order.id} has been delivered. Enjoy!`,
+    extraHtml: `<p style="margin-top:16px;"><strong>Status:</strong> Delivered ✓</p>
+      <p>Thank you for ordering from Vaha Ruchulu. We'd love a review on our website when you have a moment.</p>`,
+  },
+  cancelled: {
+    title: "Order cancelled",
+    subject: (id) => `Cancelled — Order ${id}`,
+    intro: (order) =>
+      `Hi ${order.customer.name}, your order ${order.id} has been cancelled.`,
+    extraHtml: `<p style="margin-top:16px;"><strong>Status:</strong> Cancelled</p>
+      <p>If you have questions, message us on WhatsApp at +91 8501831638.</p>`,
+  },
+};
+
+function trackOrderFooter() {
+  return `<p style="margin-top:20px;font-size:14px;line-height:1.6;">
+      You can also check status anytime on our website:
+      <a href="${SITE_URL}/#track" style="color:#0B4F2A;">Track your order</a>
+      (use your Order ID and phone number).
+    </p>`;
+}
+
+export async function sendOrderStatusEmail(order, status) {
+  const config = STATUS_EMAIL[status];
   const transporter = await getTransporter();
-  if (!transporter || !order.customer.email) return { sent: false };
+  if (!transporter || !config || !order.customer.email) return { sent: false };
 
   const html = orderEmailLayout({
-    title: "Payment confirmed",
-    intro: `Hi ${order.customer.name}, your payment for order ${order.id} has been confirmed. Thank you!`,
+    title: config.title,
+    intro: config.intro(order),
     order,
-    extraHtml: `<p style="margin-top:16px;"><strong>Payment status:</strong> Confirmed ✓</p>
-      <p>We are preparing your order fresh. You will receive dispatch updates on WhatsApp.</p>`,
+    extraHtml: `${config.extraHtml}${trackOrderFooter()}`,
   });
 
   await transporter.sendMail({
     from: `"Vaha Ruchulu" <${GMAIL_USER}>`,
     to: order.customer.email,
-    subject: `Payment Confirmed — Order ${order.id}`,
+    subject: config.subject(order.id),
     html,
   });
 
-  if (OWNER_EMAIL !== order.customer.email) {
+  if (config.notifyOwner && OWNER_EMAIL !== order.customer.email) {
     await transporter.sendMail({
       from: `"Vaha Ruchulu Orders" <${GMAIL_USER}>`,
       to: OWNER_EMAIL,
@@ -145,4 +202,9 @@ export async function sendPaymentConfirmedEmail(order) {
   }
 
   return { sent: true };
+}
+
+/** @deprecated use sendOrderStatusEmail(order, "payment_confirmed") */
+export async function sendPaymentConfirmedEmail(order) {
+  return sendOrderStatusEmail(order, "payment_confirmed");
 }
