@@ -41,6 +41,7 @@ async function trySendTelegramAlert(order) {
 import {
   addOrder,
   createOrderId,
+  getOrderById,
   loadOrders,
   updateOrder,
 } from "../server/lib/ordersStore.js";
@@ -54,6 +55,25 @@ const ORDER_STATUSES = [
   "delivered",
   "cancelled",
 ];
+
+async function parseBody(req) {
+  if (req.body != null && req.body !== "") {
+    return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+  }
+  if (typeof req.on !== "function") return {};
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk) => { data += chunk; });
+    req.on("end", () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on("error", reject);
+  });
+}
 
 function validateOrderBody(body) {
   const items = Array.isArray(body?.items) ? body.items : [];
@@ -115,6 +135,8 @@ function validateOrderBody(body) {
 }
 
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+
   try {
     if (req.method === "POST") {
       if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -123,7 +145,8 @@ export default async function handler(req, res) {
         });
       }
 
-      const result = validateOrderBody(req.body);
+      const body = await parseBody(req);
+      const result = validateOrderBody(body);
       if (result.error) {
         return res.status(400).json({ error: result.error });
       }
@@ -158,16 +181,16 @@ export default async function handler(req, res) {
       return res.status(200).json(orders);
     }
 
-    const id = String(req.body?.id || "").trim();
-    const status = String(req.body?.status || "").trim();
-    const note = String(req.body?.note || "").trim();
+    const body = await parseBody(req);
+    const id = String(body?.id || "").trim().toUpperCase();
+    const status = String(body?.status || "").trim();
+    const note = String(body?.note || "").trim();
 
     if (!id || !ORDER_STATUSES.includes(status)) {
       return res.status(400).json({ error: "Valid order id and status are required." });
     }
 
-    const orders = await loadOrders();
-    const existing = orders.find((o) => o.id === id);
+    const existing = await getOrderById(id);
     if (!existing) {
       return res.status(404).json({ error: "Order not found." });
     }
@@ -181,7 +204,11 @@ export default async function handler(req, res) {
       },
     ];
 
-    const updated = await updateOrder(id, { status, statusHistory }, orders);
+    const updated = await updateOrder(id, { status, statusHistory });
+
+    if (!updated) {
+      return res.status(500).json({ error: "Could not save order status. Please try again." });
+    }
 
     if (status === "payment_confirmed" && existing.status !== "payment_confirmed") {
       trySendPaymentConfirmedEmail(updated);

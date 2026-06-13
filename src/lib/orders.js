@@ -38,6 +38,7 @@ export async function createOrder(payload) {
 export async function fetchOrdersAdmin() {
   const res = await fetch("/api/orders", {
     headers: adminHeaders(),
+    cache: "no-store",
   });
 
   const data = await res.json().catch(() => ({}));
@@ -52,6 +53,7 @@ export async function updateOrderStatus(id, status, note = "") {
   const res = await fetch("/api/orders", {
     method: "PATCH",
     headers: adminHeaders(),
+    cache: "no-store",
     body: JSON.stringify({ id, status, note }),
   });
 

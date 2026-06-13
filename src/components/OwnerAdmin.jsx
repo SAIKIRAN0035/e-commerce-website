@@ -58,18 +58,19 @@ function OrdersPanel() {
   }, []);
 
   const handleStatus = async (id, status) => {
+    if (status === "cancelled" && !window.confirm("Cancel this order?")) {
+      return;
+    }
+
     setActionLoading(true);
     setError("");
-    const previous = orders;
-    setOrders((list) =>
-      list.map((order) => (order.id === id ? { ...order, status } : order))
-    );
     try {
       const updated = await updateOrderStatus(id, status);
       setOrders((list) => list.map((order) => (order.id === id ? updated : order)));
+      await loadOrders(true);
     } catch (err) {
-      setOrders(previous);
       setError(err.message);
+      await loadOrders(true);
     } finally {
       setActionLoading(false);
     }
