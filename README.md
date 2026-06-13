@@ -1,8 +1,9 @@
-# For Customer — Vaha Ruchulu
+# E-Commerce Website — Vaha Ruchulu
 
 Homemade Andhra pickles, podis & karams — customer-facing e-commerce website.
 
-**Live site:** https://vaha-ruchulu.vercel.app
+**Live site:** https://vaha-ruchulu.vercel.app  
+**GitHub:** https://github.com/SAIKIRAN0035/e-commerce-website
 
 ## Features
 
