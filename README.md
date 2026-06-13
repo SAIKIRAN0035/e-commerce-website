@@ -79,4 +79,4 @@ npx vercel --prod
 
 ## Author
 
-**Saikiran Reddy Yarava** · [GitHub](https://github.com/SAIKIRAN0035) · [Portfolio](https://saikiran0035.github.io/SAIKIRAN_SE/)
+**Saikiran Reddy Yarava** · [GitHub](https://github.com/SAIKIRAN0035) · [Portfolio](https://github.com/SAIKIRAN0035/saikiran-portfolio)
