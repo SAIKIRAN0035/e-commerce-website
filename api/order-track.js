@@ -1,8 +1,5 @@
 import { loadOrders } from "../server/lib/ordersStore.js";
-
-function normalizePhone(phone) {
-  return String(phone || "").replace(/\D/g, "").slice(-10);
-}
+import { isValidPhone, normalizePhone, phonesMatch } from "../shared/customerValidation.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -10,17 +7,24 @@ export default async function handler(req, res) {
   }
 
   const id = String(req.body?.id || "").trim().toUpperCase();
-  const phone = normalizePhone(req.body?.phone);
+  const phoneRaw = String(req.body?.phone || "").trim();
 
-  if (!id || !phone || phone.length < 10) {
-    return res.status(400).json({ error: "Order ID and phone number are required." });
+  if (!id) {
+    return res.status(400).json({ error: "Order ID is required." });
   }
+  if (!isValidPhone(phoneRaw)) {
+    return res.status(400).json({
+      error: "Enter the phone number with country code (e.g. +91 9876543210).",
+    });
+  }
+
+  const phone = normalizePhone(phoneRaw);
 
   try {
     const orders = await loadOrders();
     const order = orders.find((o) => o.id.toUpperCase() === id);
 
-    if (!order || normalizePhone(order.customer.phone) !== phone) {
+    if (!order || !phonesMatch(order.customer.phone, phone)) {
       return res.status(404).json({ error: "Order not found. Check your Order ID and phone number." });
     }
 

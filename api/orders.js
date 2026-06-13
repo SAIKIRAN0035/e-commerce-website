@@ -44,6 +44,7 @@ import {
   loadOrders,
   updateOrder,
 } from "../server/lib/ordersStore.js";
+import { validateCustomer } from "../shared/customerValidation.js";
 
 const ORDER_STATUSES = [
   "pending_payment",
@@ -55,19 +56,18 @@ const ORDER_STATUSES = [
 ];
 
 function validateOrderBody(body) {
-  const customer = body?.customer || {};
-  const name = String(customer.name || "").trim();
-  const phone = String(customer.phone || "").trim();
-  const address = String(customer.address || "").trim();
-  const email = String(customer.email || "").trim();
   const items = Array.isArray(body?.items) ? body.items : [];
 
-  if (!name || !phone || !address) {
-    return { error: "Name, phone, and delivery address are required." };
-  }
   if (!items.length) {
     return { error: "Order must include at least one item." };
   }
+
+  const customerCheck = validateCustomer(body?.customer || {});
+  if (!customerCheck.ok) {
+    return { error: customerCheck.error };
+  }
+
+  const { name, phone, address, email } = customerCheck.customer;
 
   const normalizedItems = items.map((item) => {
     const qty = Number(item.qty);

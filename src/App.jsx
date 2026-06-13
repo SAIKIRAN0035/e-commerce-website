@@ -17,6 +17,7 @@ import { trackOrder } from "./lib/orderTrack";
 import { ORDER_STATUS_LABELS, createOrder } from "./lib/orders";
 import { fetchAllReviews, postReview } from "./lib/reviews";
 import { fetchProducts } from "./lib/productsApi";
+import { validateCustomer, isValidPhone } from "../shared/customerValidation";
 
 const stats = [
   { main: "100%", sub: "Homemade" },
@@ -228,8 +229,14 @@ export default function App() {
       setOrderError("Please add items to your cart first.");
       return;
     }
-    if (!customer.name.trim() || !customer.phone.trim() || !customer.address.trim()) {
-      setOrderError("Please fill in your name, phone, and delivery address.");
+    if (!customer.name.trim() || !customer.phone.trim() || !customer.email.trim() || !customer.address.trim()) {
+      setOrderError("Please fill in name, phone (with country code), email, and delivery address.");
+      return;
+    }
+
+    const validated = validateCustomer(customer);
+    if (!validated.ok) {
+      setOrderError(validated.error);
       return;
     }
 
@@ -247,12 +254,7 @@ export default function App() {
     const orderId = createLocalOrderId();
     const payload = {
       orderId,
-      customer: {
-        name: customer.name.trim(),
-        phone: customer.phone.trim(),
-        email: customer.email.trim(),
-        address: customer.address.trim(),
-      },
+      customer: validated.customer,
       items: orderItems,
       total,
     };
@@ -331,6 +333,16 @@ export default function App() {
     e.preventDefault();
     setTrackError("");
     setTrackResult(null);
+
+    if (!trackForm.id.trim()) {
+      setTrackError("Enter your Order ID.");
+      return;
+    }
+    if (!isValidPhone(trackForm.phone)) {
+      setTrackError("Enter your phone with country code (e.g. +91 9876543210).");
+      return;
+    }
+
     setTrackLoading(true);
     try {
       const result = await trackOrder(trackForm.id, trackForm.phone);
@@ -523,7 +535,9 @@ export default function App() {
             onChange={(e) => setTrackForm({ ...trackForm, id: e.target.value })}
           />
           <input
-            placeholder="Phone number used when ordering"
+            type="tel"
+            inputMode="tel"
+            placeholder="Phone with country code (e.g. +91 9876543210)"
             value={trackForm.phone}
             onChange={(e) => setTrackForm({ ...trackForm, phone: e.target.value })}
           />
@@ -794,15 +808,38 @@ export default function App() {
               <span>Total</span>
               <strong>₹{total.toLocaleString("en-IN")}</strong>
             </div>
-            <input placeholder="Your Name *" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} />
-            <input placeholder="Phone Number *" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} />
             <input
+              required
+              placeholder="Your Name *"
+              value={customer.name}
+              onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+              autoComplete="name"
+            />
+            <input
+              required
+              type="tel"
+              inputMode="tel"
+              placeholder="Phone with country code * (e.g. +91 9876543210)"
+              value={customer.phone}
+              onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+              autoComplete="tel"
+            />
+            <input
+              required
               type="email"
-              placeholder="Email (for order confirmation)"
+              placeholder="Email for confirmation *"
               value={customer.email}
               onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+              autoComplete="email"
             />
-            <textarea placeholder="Delivery Address *" value={customer.address} onChange={(e) => setCustomer({ ...customer, address: e.target.value })} />
+            <textarea
+              required
+              minLength={12}
+              placeholder="Full delivery address * (street, area, city, pincode)"
+              value={customer.address}
+              onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+              autoComplete="street-address"
+            />
             <label className="cart-spice-label">
               Spice preference
               <select value={spiceLevel} onChange={(e) => setSpiceLevel(e.target.value)}>
@@ -812,7 +849,7 @@ export default function App() {
                 <option value="Extra Hot">Extra Hot</option>
               </select>
             </label>
-            <p className="cart-note">You will get an order summary here and on WhatsApp. Add email to receive confirmation.</p>
+            <p className="cart-note">Order confirmation is sent on WhatsApp and to your email. Use your real phone (with +91) and email.</p>
             {orderError && <p className="order-error">{orderError}</p>}
             <button type="button" className="btn btn-primary btn-full" onClick={placeOrder} disabled={orderPlacing}>
               {orderPlacing ? "Placing order..." : "Place Order"}
