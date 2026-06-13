@@ -4,6 +4,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 const LOCAL_REVIEWS_KEY = "vaha-ruchulu-reviews";
 
 function mapRow(row) {
+  const createdAt = row.created_at || row.createdAt || "";
   return {
     id: row.id,
     name: row.name,
@@ -12,8 +13,9 @@ function mapRow(row) {
     rating: row.rating,
     ownerReply: row.ownerReply || "",
     ownerReplyAt: row.ownerReplyAt || "",
-    date: row.created_at
-      ? new Date(row.created_at).toLocaleDateString("en-IN", {
+    createdAt,
+    date: createdAt
+      ? new Date(createdAt).toLocaleDateString("en-IN", {
           day: "numeric",
           month: "short",
           year: "numeric",
@@ -21,6 +23,75 @@ function mapRow(row) {
       : row.date || "",
     isNew: row.isNew ?? false,
   };
+}
+
+export const REVIEW_SORT_OPTIONS = [
+  { key: "relevance", label: "Relevance" },
+  { key: "newest", label: "Newest" },
+  { key: "highest", label: "Highest" },
+  { key: "lowest", label: "Lowest" },
+];
+
+export const REVIEW_RATING_FILTERS = [
+  { key: "all", label: "All ratings" },
+  { key: "5", label: "5 stars" },
+  { key: "4", label: "4 stars & up" },
+  { key: "3", label: "3 stars & up" },
+];
+
+export function reviewTimestamp(review) {
+  if (review?.createdAt) {
+    const parsed = Date.parse(review.createdAt);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  if (review?.id?.startsWith("rev-")) {
+    const parsed = Number(review.id.slice(4));
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  if (review?.date) {
+    const parsed = Date.parse(review.date);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  return 0;
+}
+
+export function filterReviewsByRating(reviews, ratingFilter) {
+  if (!ratingFilter || ratingFilter === "all") return reviews;
+
+  const minRating = Number(ratingFilter);
+  if (!Number.isFinite(minRating)) return reviews;
+
+  return reviews.filter((review) => Number(review.rating) >= minRating);
+}
+
+export function sortReviews(reviews, sortKey) {
+  const list = [...reviews];
+
+  switch (sortKey) {
+    case "newest":
+      return list.sort((a, b) => reviewTimestamp(b) - reviewTimestamp(a));
+    case "highest":
+      return list.sort(
+        (a, b) => b.rating - a.rating || reviewTimestamp(b) - reviewTimestamp(a)
+      );
+    case "lowest":
+      return list.sort(
+        (a, b) => a.rating - b.rating || reviewTimestamp(b) - reviewTimestamp(a)
+      );
+    case "relevance":
+    default:
+      return list.sort((a, b) => {
+        if (Boolean(a.isNew) !== Boolean(b.isNew)) {
+          return a.isNew ? -1 : 1;
+        }
+        const textDiff = (b.text?.length || 0) - (a.text?.length || 0);
+        if (textDiff !== 0) return textDiff;
+        return reviewTimestamp(b) - reviewTimestamp(a);
+      });
+  }
 }
 
 function adminHeaders() {

@@ -137,7 +137,34 @@ function validateAdminUpdate(body) {
   return { id, updates };
 }
 
+async function parseBody(req) {
+  if (req.body != null && req.body !== "") {
+    if (typeof req.body === "string") {
+      return JSON.parse(req.body);
+    }
+    if (Buffer.isBuffer(req.body)) {
+      return JSON.parse(req.body.toString("utf8"));
+    }
+    return req.body;
+  }
+  if (typeof req.on !== "function") return {};
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk) => { data += chunk; });
+    req.on("end", () => {
+      try {
+        resolve(data ? JSON.parse(data) : {});
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on("error", reject);
+  });
+}
+
 export default async function handler(req, res) {
+  res.setHeader("Cache-Control", "no-store");
+
   if (req.method === "GET") {
     const reviews = await loadReviews();
     return res.status(200).json(reviews);
@@ -150,7 +177,8 @@ export default async function handler(req, res) {
       });
     }
 
-    const result = validateReview(req.body);
+    const body = await parseBody(req);
+    const result = validateReview(body);
     if (result.error) {
       return res.status(400).json({ error: result.error });
     }
@@ -177,7 +205,8 @@ export default async function handler(req, res) {
     const reviews = await loadReviews();
 
     if (req.method === "DELETE") {
-      const id = String(req.body?.id || "").trim();
+      const body = await parseBody(req);
+      const id = String(body?.id || "").trim();
       if (!id) return res.status(400).json({ error: "Review id is required." });
 
       const next = reviews.filter((r) => r.id !== id);
@@ -189,7 +218,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, id });
     }
 
-    const result = validateAdminUpdate(req.body);
+    const body = await parseBody(req);
+    const result = validateAdminUpdate(body);
     if (result.error) {
       return res.status(400).json({ error: result.error });
     }

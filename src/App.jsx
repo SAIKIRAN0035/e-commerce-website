@@ -17,9 +17,17 @@ import { trackOrder } from "./lib/orderTrack";
 import {
   ORDER_STATUS_CUSTOMER_HINTS,
   ORDER_STATUS_LABELS,
-  createOrder,
+  queueOrderSave,
+  submitOrder,
 } from "./lib/orders";
-import { fetchAllReviews, postReview } from "./lib/reviews";
+import {
+  REVIEW_RATING_FILTERS,
+  REVIEW_SORT_OPTIONS,
+  fetchAllReviews,
+  filterReviewsByRating,
+  postReview,
+  sortReviews,
+} from "./lib/reviews";
 import { fetchProducts } from "./lib/productsApi";
 import { validateCustomer, isValidPhone } from "../shared/customerValidation";
 
@@ -114,6 +122,8 @@ export default function App() {
   const [reviewForm, setReviewForm] = useState({ name: "", location: "", text: "", rating: 5 });
   const [reviewSuccess, setReviewSuccess] = useState("");
   const [reviewError, setReviewError] = useState("");
+  const [reviewSort, setReviewSort] = useState("relevance");
+  const [reviewRatingFilter, setReviewRatingFilter] = useState("all");
   const [openFaq, setOpenFaq] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -164,6 +174,11 @@ export default function App() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  const displayedReviews = useMemo(() => {
+    const filtered = filterReviewsByRating(reviews, reviewRatingFilter);
+    return sortReviews(filtered, reviewSort);
+  }, [reviews, reviewRatingFilter, reviewSort]);
 
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + item.linePrice * item.qty, 0),
@@ -267,16 +282,10 @@ export default function App() {
       buildWhatsAppOrderMessage(buildOrderFromPayload(payload), spiceLevel)
     )}`;
 
-    // Phones block window.open after async — open WhatsApp in the same tap, then save the order.
-    openWhatsAppChat(waUrl);
-
     if (isMobileDevice()) {
-      fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        keepalive: true,
-      }).catch(() => {});
+      // Save before redirect — navigation to WhatsApp cancels a normal fetch.
+      queueOrderSave(payload);
+      openWhatsAppChat(waUrl);
       sessionStorage.setItem("vaha_order_placed", orderId);
       setCart([]);
       setCustomer({ name: "", phone: "", email: "", address: "" });
@@ -286,14 +295,15 @@ export default function App() {
 
     setOrderPlacing(true);
     try {
-      const order = await createOrder(payload);
+      const order = await submitOrder(payload);
+      openWhatsAppChat(waUrl);
       setConfirmedOrder(order);
       setOrderSuccess(true);
       setCart([]);
       setCustomer({ name: "", phone: "", email: "", address: "" });
       setCartOpen(false);
-    } catch {
-      setOrderError("Order saved to WhatsApp. If the shop did not open, tap Place Order again.");
+    } catch (err) {
+      setOrderError(err.message || "Could not save order. Please try again or message us on WhatsApp.");
     } finally {
       setOrderPlacing(false);
     }
@@ -370,7 +380,7 @@ export default function App() {
           <a href="#track">Track Order</a>
           <a href="#delivery">Delivery</a>
           <a href="#faq">FAQ</a>
-          <a href="#testimonials">Reviews</a>
+          <a href="#testimonials">Rate &amp; Review</a>
           <a href="#contact">Contact</a>
         </nav>
         <div className="header-actions">
@@ -651,12 +661,12 @@ export default function App() {
       <section id="testimonials" className="section testimonials-section">
         <div className="section-head reveal">
           <p className="eyebrow">Customer Love</p>
-          <h2>What Our Customers Say</h2>
-          <p>Ordered from us? Share your experience below.</p>
+          <h2>Rate &amp; Review</h2>
+          <p>Ordered from us? Share your experience and browse what others said.</p>
         </div>
 
         <form className="review-form reveal" onSubmit={submitReview}>
-          <h3>Write a Review</h3>
+          <h3>Rate &amp; Review</h3>
           <div className="review-form-row">
             <input
               placeholder="Your Name"
@@ -687,11 +697,49 @@ export default function App() {
           <button type="submit" className="btn btn-primary">Submit Review</button>
         </form>
 
+        {!reviewsLoading && reviews.length > 0 && (
+          <div className="review-filters reveal">
+            <label className="review-filter-label">
+              Sort by
+              <select
+                value={reviewSort}
+                onChange={(e) => setReviewSort(e.target.value)}
+                aria-label="Sort reviews"
+              >
+                {REVIEW_SORT_OPTIONS.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="review-filter-label">
+              Rating
+              <select
+                value={reviewRatingFilter}
+                onChange={(e) => setReviewRatingFilter(e.target.value)}
+                aria-label="Filter reviews by rating"
+              >
+                {REVIEW_RATING_FILTERS.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="review-filter-count">
+              {displayedReviews.length} review{displayedReviews.length === 1 ? "" : "s"}
+            </p>
+          </div>
+        )}
+
         {reviewsLoading ? (
           <p className="reviews-loading">Loading reviews...</p>
+        ) : displayedReviews.length === 0 ? (
+          <p className="reviews-loading">No reviews match this filter yet.</p>
         ) : (
           <div className="testimonials-grid">
-            {reviews.map((t, i) => (
+            {displayedReviews.map((t, i) => (
               <blockquote className={`testimonial reveal delay-${(i % 4) + 1}`} key={t.id}>
                 <div className="testimonial-top">
                   <Stars count={t.rating} />

@@ -27,21 +27,50 @@ function adminHeaders() {
   };
 }
 
-export async function createOrder(payload) {
-  try {
-    const res = await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+/** Save order to server so it appears in the owner dashboard. */
+export async function submitOrder(payload) {
+  const res = await fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) return data;
-  } catch {
-    /* fall through to local order for WhatsApp */
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || "Could not save order. Please try again or order on WhatsApp.");
   }
 
-  return buildOrderFromPayload(payload);
+  return data;
+}
+
+/**
+ * Fire-and-forget save before leaving the page (mobile WhatsApp redirect).
+ * sendBeacon runs synchronously and survives navigation better than fetch.
+ */
+export function queueOrderSave(payload) {
+  const body = JSON.stringify(payload);
+
+  if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+    const blob = new Blob([body], { type: "application/json" });
+    if (navigator.sendBeacon("/api/orders", blob)) {
+      return;
+    }
+  }
+
+  fetch("/api/orders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {});
+}
+
+export async function createOrder(payload) {
+  try {
+    return await submitOrder(payload);
+  } catch {
+    return buildOrderFromPayload(payload);
+  }
 }
 
 export async function fetchOrdersAdmin() {

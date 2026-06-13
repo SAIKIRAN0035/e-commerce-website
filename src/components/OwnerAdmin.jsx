@@ -55,6 +55,8 @@ function OrdersPanel() {
 
   useEffect(() => {
     loadOrders();
+    const timer = setInterval(() => loadOrders(true), 15000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleStatus = async (id, status) => {
