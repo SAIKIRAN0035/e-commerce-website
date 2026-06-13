@@ -11,7 +11,8 @@ import {
 import { products as defaultProducts, categories as defaultCategories } from "./data/products";
 import { deliveryInfo, paymentInfo, faqItems } from "./data/siteInfo";
 import OwnerAdmin from "./components/OwnerAdmin";
-import { buildWhatsAppOrderMessage, formatOrderDate } from "./lib/orderMessage";
+import { buildWhatsAppOrderMessage, formatOrderDate, createLocalOrderId, buildOrderFromPayload } from "./lib/orderMessage";
+import { openWhatsAppChat, isMobileDevice } from "./lib/whatsapp";
 import { trackOrder } from "./lib/orderTrack";
 import { ORDER_STATUS_LABELS, createOrder } from "./lib/orders";
 import { fetchAllReviews, postReview } from "./lib/reviews";
@@ -63,7 +64,7 @@ function shareSite() {
   if (navigator.share) {
     navigator.share({ title: "Vaha Ruchulu", text, url }).catch(() => {});
   } else {
-    window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, "_blank");
+    openWhatsAppChat(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`);
   }
 }
 
@@ -130,9 +131,8 @@ export default function App() {
   };
 
   const openWhatsAppCatalog = () => {
-    window.open(
-      `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(buildCatalogMessage(products, categories))}`,
-      "_blank"
+    openWhatsAppChat(
+      `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(buildCatalogMessage(products, categories))}`
     );
   };
 
@@ -146,6 +146,12 @@ export default function App() {
   useEffect(() => {
     loadReviews();
     loadInventory();
+    const placedId = sessionStorage.getItem("vaha_order_placed");
+    if (placedId) {
+      sessionStorage.removeItem("vaha_order_placed");
+      setConfirmedOrder({ id: placedId });
+      setOrderSuccess(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -228,7 +234,6 @@ export default function App() {
     }
 
     setOrderError("");
-    setOrderPlacing(true);
 
     const orderItems = cart.map((item) => ({
       id: item.id,
@@ -239,7 +244,9 @@ export default function App() {
       subtotal: item.linePrice * item.qty,
     }));
 
+    const orderId = createLocalOrderId();
     const payload = {
+      orderId,
       customer: {
         name: customer.name.trim(),
         phone: customer.phone.trim(),
@@ -250,17 +257,40 @@ export default function App() {
       total,
     };
 
-    const order = await createOrder(payload);
-    setConfirmedOrder(order);
-      window.open(
-        `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(buildWhatsAppOrderMessage(order, spiceLevel))}`,
-        "_blank"
-      );
-    setOrderSuccess(true);
-    setCart([]);
-    setCustomer({ name: "", phone: "", email: "", address: "" });
-    setCartOpen(false);
-    setOrderPlacing(false);
+    const waUrl = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
+      buildWhatsAppOrderMessage(buildOrderFromPayload(payload), spiceLevel)
+    )}`;
+
+    // Phones block window.open after async — open WhatsApp in the same tap, then save the order.
+    openWhatsAppChat(waUrl);
+
+    if (isMobileDevice()) {
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      }).catch(() => {});
+      sessionStorage.setItem("vaha_order_placed", orderId);
+      setCart([]);
+      setCustomer({ name: "", phone: "", email: "", address: "" });
+      setCartOpen(false);
+      return;
+    }
+
+    setOrderPlacing(true);
+    try {
+      const order = await createOrder(payload);
+      setConfirmedOrder(order);
+      setOrderSuccess(true);
+      setCart([]);
+      setCustomer({ name: "", phone: "", email: "", address: "" });
+      setCartOpen(false);
+    } catch {
+      setOrderError("Order saved to WhatsApp. If the shop did not open, tap Place Order again.");
+    } finally {
+      setOrderPlacing(false);
+    }
   };
 
   const submitReview = async (e) => {

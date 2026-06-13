@@ -18,7 +18,7 @@ export function buildOrderFromPayload(payload) {
   const total = items.reduce((sum, item) => sum + item.subtotal, 0);
 
   return {
-    id: createLocalOrderId(),
+    id: payload.orderId || createLocalOrderId(),
     createdAt: new Date().toISOString(),
     status: "pending_payment",
     customer: payload.customer,

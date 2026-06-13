@@ -92,9 +92,12 @@ function validateOrderBody(body) {
 
   const total = normalizedItems.reduce((sum, item) => sum + item.subtotal, 0);
 
+  const clientId = String(body?.orderId || "").trim().toUpperCase();
+  const id = /^VR-\d{6}-[A-Z0-9]{4}$/.test(clientId) ? clientId : createOrderId();
+
   return {
     order: {
-      id: createOrderId(),
+      id,
       createdAt: new Date().toISOString(),
       status: "pending_payment",
       customer: { name, phone, address, email },
