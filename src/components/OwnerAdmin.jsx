@@ -134,14 +134,24 @@ function OrdersPanel() {
               )}
               <div className="admin-order-actions">
                 {order.status === "pending_payment" && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={actionLoading}
-                    onClick={() => handleStatus(order.id, "payment_confirmed")}
-                  >
-                    Confirm Payment
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={actionLoading}
+                      onClick={() => handleStatus(order.id, "payment_confirmed")}
+                    >
+                      Confirm Payment
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      disabled={actionLoading}
+                      onClick={() => handleStatus(order.id, "cancelled")}
+                    >
+                      Cancel Order
+                    </button>
+                  </>
                 )}
                 {order.status === "payment_confirmed" && (
                   <button
@@ -171,16 +181,6 @@ function OrdersPanel() {
                     onClick={() => handleStatus(order.id, "delivered")}
                   >
                     Mark Delivered
-                  </button>
-                )}
-                {order.status !== "cancelled" && order.status !== "delivered" && (
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    disabled={actionLoading}
-                    onClick={() => handleStatus(order.id, "cancelled")}
-                  >
-                    Cancel
                   </button>
                 )}
               </div>
