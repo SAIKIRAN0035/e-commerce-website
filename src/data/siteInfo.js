@@ -24,7 +24,6 @@ export const deliveryInfo = [
 export const paymentInfo = [
   { icon: "📱", title: "UPI / GPay / PhonePe", desc: "Pay via UPI after order confirmation on WhatsApp." },
   { icon: "💳", title: "Bank Transfer", desc: "NEFT/IMPS details shared on WhatsApp for larger orders." },
-  { icon: "🚪", title: "Cash on Delivery", desc: "COD available for select locations in India (min order ₹800)." },
   { icon: "🌍", title: "International Orders", desc: "100% advance payment required for international deliveries." },
 ];
 
